@@ -1,0 +1,3 @@
+"""FastAPI application instance."""
+
+# -- Imports
