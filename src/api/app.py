@@ -2,11 +2,13 @@
 
 # -- Imports
 
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.api.routers._0_main_router import main_router
 from fastapi.responses import ORJSONResponse
+from src.core.log import conf_logging
 
 
 # -- Exports
@@ -17,6 +19,9 @@ __all__ = ["app"]
 
 
 def getUP() -> FastAPI:
+
+    conf_logging(level=logging.INFO)
+
     app = FastAPI(
         title=settings._description.title,
         description=settings._description.description,
@@ -32,6 +37,8 @@ def getUP() -> FastAPI:
     app.add_middleware(
         middleware_class=CORSMiddleware,
         allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
 
     return app
