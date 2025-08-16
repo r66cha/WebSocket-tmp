@@ -7,6 +7,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from src.core.config import settings
 from src.api.routers._0_main_router import main_router
+
+from src.api.routers.WebSocket import websocket_router
 from fastapi.responses import ORJSONResponse
 from src.core.log import conf_logging
 
@@ -32,6 +34,7 @@ def getUP() -> FastAPI:
 
     # Routers
     app.include_router(main_router)
+    app.include_router(websocket_router)
 
     # Middleware
     app.add_middleware(
