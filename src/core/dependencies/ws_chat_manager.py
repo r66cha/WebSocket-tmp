@@ -12,9 +12,9 @@ if TYPE_CHECKING:
 # -- Exports
 
 __all__ = [
-    "manager",
-    "get_ws_manager",
-    "WSConnectionManager",
+    "chat_manager",
+    "get_ws_chat_manager",
+    "WSChatConnectionManager",
 ]
 
 # --
@@ -24,11 +24,15 @@ log = logging.getLogger(__name__)
 # --
 
 
-class WSConnectionManager:
+class WSChatConnectionManager:
     def __init__(self):
         self.active_connections: Dict[int, "WebSocket"] = {}
 
-    async def connect(self, user_id: int, websocket: "WebSocket"):
+    async def connect(
+        self,
+        user_id: int,
+        websocket: "WebSocket",
+    ):
         await websocket.accept()
         self.active_connections[user_id] = websocket
         log.info("User %s connected", user_id)
@@ -38,7 +42,10 @@ class WSConnectionManager:
         log.info("User %s disconnected", user_id)
 
     async def send_personal_message(
-        self, sender_id: int, receiver_id: int, message: str
+        self,
+        sender_id: int,
+        receiver_id: int,
+        message: str,
     ):
         websocket = self.active_connections.get(receiver_id)
         if websocket:
@@ -48,9 +55,9 @@ class WSConnectionManager:
             # RabbitMQ safe
 
 
-manager = WSConnectionManager()
+chat_manager = WSChatConnectionManager()
 
 
 # Dependency
-def get_ws_manager() -> WSConnectionManager:
-    return manager
+def get_ws_chat_manager() -> WSChatConnectionManager:
+    return chat_manager

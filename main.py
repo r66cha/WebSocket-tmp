@@ -9,7 +9,7 @@ import uvicorn
 
 HOST = "0.0.0.0"
 PORT = 8080
-APP = "src.api.app:app"
+APP = "src.api.server:app"
 
 # --
 

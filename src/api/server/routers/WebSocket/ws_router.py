@@ -3,10 +3,27 @@
 # -- Imports
 
 import logging
-from fastapi import APIRouter, WebSocketDisconnect, WebSocket, Cookie, Depends
+from datetime import datetime, timezone
 
-from src.core.dependencies import WSConnectionManager, get_ws_manager
+from fastapi import (
+    APIRouter,
+    WebSocketDisconnect,
+    WebSocket,
+    Cookie,
+    Path,
+    Depends,
+)
+
+from src.core.dependencies import (
+    WSChatConnectionManager,
+    WSRoomConnectionManager,
+    get_ws_chat_manager,
+    get_ws_room_manager,
+)
 from typing import Set, Annotated, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi import WebSocket
 
 
 # -- Exports
@@ -16,19 +33,21 @@ __all__ = ["websocket_router"]
 # --
 
 websocket_router = APIRouter()
+
 log = logging.getLogger(__name__)
 
 clients: Set[WebSocket] = set()
 
+
 # --
 
 
-# Default tmp for WebSOcket
+# Echo
 @websocket_router.websocket(
-    path="/ws/default",
-    name="Websocket-tmp-default",
+    path="/ws/echo",
+    name="Websocket-tmp-echo",
 )
-async def ws_endpoint(websocket: WebSocket):
+async def echo(websocket: "WebSocket"):
     await websocket.accept()
     clients.add(websocket)
     try:
@@ -45,14 +64,15 @@ async def ws_endpoint(websocket: WebSocket):
         log.error("Unexpected exception in websocket: %s", e)
 
 
+# Private Chat
 @websocket_router.websocket(
     path="/ws/chats/{receiver_id}",
     name="Websocket-tmp-personal_chat",
 )
 async def private_chat(
-    websocket: WebSocket,
-    manager: Annotated[WSConnectionManager, Depends(get_ws_manager)],
-    receiver_id: int,
+    websocket: "WebSocket",
+    manager: Annotated[WSChatConnectionManager, Depends(get_ws_chat_manager)],
+    receiver_id: Annotated[int, Path()],
     sender_id: Annotated[int | None, Cookie(alias="me")] = None,
 ):
     if sender_id is None:
@@ -83,3 +103,37 @@ async def private_chat(
     finally:
         await manager.disconnect(sender_id)
         log.info("Connection with user %s cleaned up", sender_id)
+
+
+# MultiChat
+@websocket_router.websocket(
+    path="/ws/rooms/{room_id}",
+    name="Websocket-tmp-multichat",
+)
+async def multichat(
+    websocket: "WebSocket",
+    room_id: int,
+    manager: Annotated[WSRoomConnectionManager, Depends(get_ws_room_manager)],
+    sender_id: Annotated[int | None, Cookie(alias="me")] = None,
+):
+    if sender_id is None:
+        await websocket.close(code=4001)
+        return
+
+    try:
+        await manager.connect(room_id, websocket)
+        while True:
+            data = await websocket.receive_text()
+            timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            log.info("Room %s message: %s", room_id, data)
+            await manager.broadcast(
+                websocket,
+                room_id,
+                message=f"[{timestamp}] [Room {room_id}] [User {sender_id}]: {data}",
+            )
+    except WebSocketDisconnect:
+        log.info("Client disconnected from room %s", room_id)
+    except Exception as e:
+        log.error("Unexpected error in room %s: %s", room_id, e)
+    finally:
+        await manager.disconnect(room_id, websocket)
