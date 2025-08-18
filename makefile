@@ -4,5 +4,8 @@ freeze:
 install-req:
 	uv pip install -r requirements.txt
 
-run:
+run-server:
 	uv run main.py
+
+run-client:
+	uv run src/api/client/ws_client.py
